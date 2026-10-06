@@ -1,15 +1,15 @@
 // Хранилище: состояние приложения в localStorage + разбор текста расписания.
-import { SEED, HOLIDAYS_DEFAULT } from './data.js';
+import { SEED, SEED_ELECTRIC, HOLIDAYS_DEFAULT } from './data.js';
 import { pad, toMin } from './time.js';
 
-const K = 'rt.v3';
-const LEGACY = ['rt.v2'];
+const K = 'rt.v4';
+const LEGACY = ['rt.v3', 'rt.v2'];
 
 const def = () => ({
-  routes: [SEED],
+  routes: [SEED, SEED_ELECTRIC],
   s: {
     theme: 'auto', route: SEED.id, dir: 0, pinned: [], past: false, filter: '',
-    name: '', alerts: true, holidays: [...HOLIDAYS_DEFAULT]
+    name: '', alerts: true, holidays: [...HOLIDAYS_DEFAULT], compact: false
   }
 });
 
@@ -26,8 +26,13 @@ function normalize(x) {
   s.pinned = Array.isArray(s.pinned) ? s.pinned.map(String) : [];
   s.holidays = Array.isArray(s.holidays) ? s.holidays.filter(h => /^\d{4}-\d{2}-\d{2}$/.test(h)).sort() : [...HOLIDAYS_DEFAULT];
   s.theme = ['auto', 'light', 'dark'].includes(s.theme) ? s.theme : 'auto';
+  s.compact = !!s.compact;
   s.dir = +s.dir || 0;
-  if (!routes.length) routes.push(SEED);
+  // Встроенные маршруты всегда актуальнее сохранённых копий: берём их из data.js
+  for (const seed of [SEED, SEED_ELECTRIC]) {
+    const i = routes.findIndex(r => r.id === seed.id);
+    if (i >= 0) routes[i] = seed; else routes.unshift(seed);
+  }
   if (!routes.some(r => r.id === s.route)) s.route = routes[0].id;
   return { routes, s };
 }
@@ -67,8 +72,16 @@ export function addRoute(r) {
 
 export function delRoute(id) {
   S.routes = S.routes.filter(r => r.id !== id);
-  if (!S.routes.length) S.routes = [SEED];
+  if (!S.routes.length) S.routes = [SEED, SEED_ELECTRIC];
   if (S.s.route === id) { S.s.route = S.routes[0].id; S.s.dir = 0; S.s.filter = ''; }
+  save();
+}
+
+// Обновление пользовательского маршрута (редактирование)
+export function updRoute(r) {
+  const i = S.routes.findIndex(x => x.id === r.id);
+  if (i >= 0) S.routes[i] = r; else S.routes.push(r);
+  S.s.route = r.id; S.s.dir = 0; S.s.filter = '';
   save();
 }
 
@@ -115,6 +128,10 @@ export function parseLines(txt) {
   return out;
 }
 
+// Обратное преобразование рейсов в текст для редактирования маршрута
+export const flightsToText = fl => fl.map(f =>
+  `${f.t} ${f.r}${f.d ? ' ' + f.d + ' мин' : ''}${f.w ? ' будни' : ''}`).join('\n');
+
 // ---- Импорт/экспорт ----
 // Экспортируются только пользовательские маршруты: встроенные приходят с приложением.
 export const exportJSON = () => JSON.stringify({
@@ -134,3 +151,14 @@ export function importJSON(txt) {
   save();
   return ok.length;
 }
+
+// ---- Тип транспорта и подписи ----
+export const kindOf = r => r.kind || (/электр|поезд|ржд|сапсан/i.test(r.name || '') ? 'train' : 'bus');
+
+export const KIND_LABEL = { bus: 'Автобус', train: 'Электричка' };
+
+// Слово «рейс» в зависимости от вида транспорта
+export const tripWord = (r, one, few, many) => kindOf(r) === 'train'
+  ? { one: 'поезд', few: 'поезда', many: 'поездов' }[{ one, few, many }] || many
+  : { one, few, many }[{ one, few, many }];
+

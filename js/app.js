@@ -1,7 +1,7 @@
 // Точка входа: состояние вкладки, рендер, обработчики событий, уведомления.
-import { S, save, route, addRoute, delRoute, parseLines, resetAll, importJSON, exportJSON, workday, isHoliday, ymd } from './store.js';
+import { S, save, route, addRoute, updRoute, delRoute, parseLines, flightsToText, resetAll, importJSON, exportJSON, workday, isHoliday, ymd, kindOf } from './store.js';
 import * as V from './views.js';
-import { $, toast, confirmBox, vibrate, EXAMPLE_A } from './ui.js';
+import { $, toast, confirmBox, vibrate, EXAMPLE_A, EXAMPLE_TRAIN } from './ui.js';
 import { VERSION } from './data.js';
 import { toMin, minOf } from './time.js';
 
@@ -12,6 +12,7 @@ const KEY = 'rt.tab';
 let deferred = null;
 let lastKey = '';
 let storageInfo = '—';
+let editingId = null; // id маршрута, который редактируется во вкладке «Маршруты»
 
 // ---- Выбор вкладки: hash (#/sched) + сохранение последней ----
 function currentTab() {
@@ -29,6 +30,17 @@ addEventListener('hashchange', () => {
 // ---- Рендер ----
 const view = $('#view');
 
+function editingData() {
+  if (!editingId) return null;
+  const rt = S.routes.find(x => x.id === editingId && !x.builtin);
+  if (!rt) { editingId = null; return null; }
+  const split = (rt.name || '').split(/\s*(?:↔|—|-{2,})\s*/);
+  return {
+    id: rt.id, name: rt.name, price: rt.price || 0, kind: kindOf(rt),
+    from: split[0] || '', to: split[1] || '', dirs: rt.dirs
+  };
+}
+
 function ctx() {
   const now = new Date(), tmr = new Date(now.getTime() + 864e5);
   return {
@@ -41,7 +53,10 @@ function ctx() {
     notifySupported: 'Notification' in window,
     permission: 'Notification' in window ? Notification.permission : 'unsupported',
     storageUsed: storageInfo,
-    example: EXAMPLE_A
+    example: EXAMPLE_A,
+    exampleB: EXAMPLE_TRAIN,
+    editing: editingData(),
+    fmt: flightsToText
   };
 }
 
@@ -59,8 +74,8 @@ function render(force) {
   // Если направление вне диапазона маршрута — сбросить (защита после смены маршрута)
   if (S.s.dir >= r.dirs.length) { S.s.dir = 0; save(); }
 
-  const key = JSON.stringify([tab, r.id, S.s.dir, S.s.filter, S.s.past, S.s.pinned, S.s.name, S.s.theme,
-    S.s.alerts, S.s.holidays.length, now.getHours(), now.getMinutes(), c.canInstall, c.standalone, storageInfo]);
+  const key = JSON.stringify([tab, r.id, S.s.dir, S.s.filter, S.s.past, S.s.compact, S.s.pinned, S.s.name, S.s.theme,
+    S.s.alerts, S.s.holidays.length, now.getHours(), now.getMinutes(), c.canInstall, c.standalone, storageInfo, editingId]);
   if (!force && key === lastKey) return; // ничего не изменилось — не трогаем DOM
   lastKey = key;
 
@@ -148,7 +163,10 @@ const A = {
   filter: v => { S.s.filter = v; },
   pin: v => { const p = S.s.pinned, i = p.indexOf(v); i < 0 ? p.push(v) : p.splice(i, 1); vibrate(10); },
   past: () => { S.s.past = !S.s.past; },
-  pick: v => { S.s.route = v; S.s.dir = 0; S.s.filter = ''; setTab('sched'); },
+  compact: () => { S.s.compact = !S.s.compact; },
+  pick: v => { S.s.route = v; S.s.dir = 0; S.s.filter = ''; editingId = null; setTab('sched'); },
+  edit: v => { editingId = v; scrollTo(0, 0); },
+  cancelEdit: () => { editingId = null; },
   theme: v => { S.s.theme = v; },
   alerts: async () => {
     if (!S.s.alerts && 'Notification' in window && Notification.permission === 'default') {
@@ -251,12 +269,15 @@ document.addEventListener('submit', e => {
   if (!a.length) return toast('В строке «туда» не распознано ни одного рейса');
   const dirs = [{ title: g('from') + ' → ' + g('to'), flights: a }];
   if (b.length) dirs.push({ title: g('to') + ' → ' + g('from'), flights: b });
-  addRoute({
-    id: 'r' + Date.now().toString(36), name: g('name'), price: +g('price') || 0,
+  const kind = el.kind.value === 'train' ? 'train' : 'bus';
+  const id = el.id && el.id.value || 'r' + Date.now().toString(36);
+  updRoute({
+    id, name: g('name'), price: +g('price') || 0, kind,
     updated: ymd(new Date()), builtin: false, dirs
   });
+  editingId = null;
   setTab('sched');
-  toast(`Маршрут добавлен: ${a.length + b.length} рейсов`);
+  toast(`Маршрут сохранён: ${a.length + b.length} рейсов`);
   render(true);
 });
 
