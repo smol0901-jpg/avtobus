@@ -1,0 +1,26 @@
+:root{--bg:#f3f6fa;--card:#fff;--tx:#17212d;--mu:#667386;--ln:#e2e8f0;--ac:#1f5fa8;--ac2:#e6f0fb;
+--soon:#b36b00;--soon2:#fff1d9;--now:#c0262d;--now2:#fde7e8;--sh:0 2px 10px rgba(20,40,70,.07)}
+:root[data-theme=dark]{--bg:#0f1722;--card:#18222f;--tx:#e8edf3;--mu:#92a0b2;--ln:#263344;--ac:#6aa8e0;--ac2:#1b2b3f;
+--soon:#e5b25d;--soon2:#32291a;--now:#f28b8f;--now2:#3b2023;--sh:none}
+@media(prefers-color-scheme:dark){:root[data-theme=auto]{--bg:#0f1722;--card:#18222f;--tx:#e8edf3;--mu:#92a0b2;--ln:#263344;--ac:#6aa8e0;--ac2:#1b2b3f;
+--soon:#e5b25d;--soon2:#32291a;--now:#f28b8f;--now2:#3b2023;--sh:none}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+padding:calc(56px + env(safe-area-inset-top)) 0 calc(78px + env(safe-area-inset-bottom))}
+main{max-width:720px;margin:0 auto;padding:12px 14px}
+h2{font-size:1.1rem;margin:18px 0 8px}
+a{color:var(--ac)}
+button{font:inherit;color:inherit;cursor:pointer}
+.top{position:fixed;inset:0 0 auto 0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+padding:calc(8px + env(safe-area-inset-top)) 16px 8px;background:var(--ac);color:#fff}
+:root[data-theme=dark] .top{background:var(--card);color:var(--tx);border-bottom:1px solid var(--ln)}
+.brand{display:flex;gap:10px;align-items:center}.brand img{border-radius:8px}
+.tabbar{position:fixed;inset:auto 0 0 0;z-index:5;display:flex;background:var(--card);border-top:1px solid var(--ln);
+padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;border:0;background:none;padding:8px 2px;font-size:.72rem;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar i{font-style:normal;font-size:1.3rem}.tabbar .on{color:var(--ac);font-weight:700}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;
+background:#17212d;color:#fff;padding:10px 16px;border-radius:12px;transition:.25s;pointer-events:none;z-index:9;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
