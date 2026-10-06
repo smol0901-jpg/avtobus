@@ -1,15 +1,16 @@
 // Хранилище: состояние приложения в localStorage + разбор текста расписания.
-import { SEED, SEED_ELECTRIC, HOLIDAYS_DEFAULT } from './data.js';
+import { SEED, SEED_ELECTRIC, HUB, HOLIDAYS_DEFAULT } from './data.js';
 import { pad, toMin } from './time.js';
+import { dirPair } from './geo.js';
 
-const K = 'rt.v4';
-const LEGACY = ['rt.v3', 'rt.v2'];
+const K = 'rt.v6';
+const LEGACY = ['rt.v5', 'rt.v4', 'rt.v3', 'rt.v2'];
 
 const def = () => ({
   routes: [SEED, SEED_ELECTRIC],
   s: {
     theme: 'auto', route: SEED.id, dir: 0, pinned: [], past: false, filter: '',
-    name: '', alerts: true, holidays: [...HOLIDAYS_DEFAULT], compact: false
+    name: '', alerts: true, holidays: [...HOLIDAYS_DEFAULT], compact: false, link: true
   }
 });
 
@@ -27,6 +28,7 @@ function normalize(x) {
   s.holidays = Array.isArray(s.holidays) ? s.holidays.filter(h => /^\d{4}-\d{2}-\d{2}$/.test(h)).sort() : [...HOLIDAYS_DEFAULT];
   s.theme = ['auto', 'light', 'dark'].includes(s.theme) ? s.theme : 'auto';
   s.compact = !!s.compact;
+  s.link = s.link !== false;
   s.dir = +s.dir || 0;
   // Встроенные маршруты всегда актуальнее сохранённых копий: берём их из data.js
   for (const seed of [SEED, SEED_ELECTRIC]) {
@@ -157,6 +159,58 @@ export const kindOf = r => r.kind || (/электр|поезд|ржд|сапса
 
 export const KIND_LABEL = { bus: 'Автобус', train: 'Электричка' };
 
+// ---- Связка «автобус ↔ электричка» ----
+// Работает по узлам сети (js/geo.js): приложение определяет, КАКУДА движется
+// текущее направление (например, в сторону СПб), и подбирает ближайший рейс
+// ДРУГОГО вида транспорта, который едет в ту же сторону. Поэтому:
+//   * на экране автобуса «Большое Рейзино → Гатчина» показывается ближайшая
+//     электричка «Гатчина-Варшавская → СПб»;
+//   * на экране электрички «СПб → Гатчина» показывается ближайший автобус
+//     «Гатчина → Большое Рейзино».
+// Свойства match у маршрутов больше не нужны — всё считается по названиям.
+
+// Ближайший (и все последующие) рейсы направления на сегодня.
+export function upcoming(dir, now, workToday) {
+  const nm = minOf(now);
+  return dir.flights
+    .filter(f => !(f.w && !workToday) && toMin(f.t) >= nm)
+    .sort((a, b) => toMin(a.t) - toMin(b.t));
+}
+
+const nextFlight = (dir, now, workToday) => upcoming(dir, now, workToday)[0] || null;
+
+// Все направления всех маршрутов нужного вида, у которых определена пара узлов.
+function linkedDirs(routes, wantKind) {
+  const out = [];
+  for (const x of routes) {
+    if (kindOf(x) !== wantKind) continue;
+    x.dirs.forEach((d, i) => {
+      const p = dirPair(d.title);
+      if (p) out.push({ route: x, dirIndex: i, dir: d, pair: p });
+    });
+  }
+  return out;
+}
+
+// Главная связка: для текущего маршрута и направления подбирает ближайший
+// рейс ДРУГОГО вида транспорта в том же направлении. Возвращает
+// { route, dirIndex, flight, pair } или null, если подходящей связки нет.
+export function linkTo(S, r, di, now, workToday) {
+  if (!S.s.link) return null;
+  const cur = r.dirs[di];
+  if (!cur) return null;
+  const pair = dirPair(cur.title);
+  if (!pair) return null;
+  const want = kindOf(r) === 'train' ? 'bus' : 'train';
+  const cands = linkedDirs(S.routes.filter(x => x.id !== r.id), want)
+    .filter(m => m.pair[0] === pair[0] && m.pair[1] === pair[1]);
+  for (const m of cands) {
+    const f = nextFlight(m.dir, now, workToday);
+    if (f) return { route: m.route, dirIndex: m.dirIndex, flight: f, pair };
+  }
+  return null;
+}
+
 // ---- Актуальность данных: сезонное расписание ----
 // Сезон меняется ориентировочно в первую субботу апреля (летнее) и октября (зимнее).
 const firstSat = (y, m) => { const d = new Date(y, m, 1); return new Date(y, m, 1 + ((6 - d.getDay()) + 7) % 7); };
@@ -184,8 +238,9 @@ export function freshness(r, now = new Date()) {
 
 // ---- Шаблоны JSON (папка data/ в репозитории) ----
 export const TEMPLATES = [
-  { file: 'data/template-bus.json', title: 'Автобусы: Большое Рейзино ↔ Гатчина', desc: 'Летнее расписание на 2026-10-06. Замените рейсы на зимние и импортируйте.' },
-  { file: 'data/template-electric.json', title: 'Электрички: Гатчина ↔ Балтийский вокзал', desc: 'Готовый пример маршрута вида «Электричка» с временем в пути.' },
+  { file: 'data/template-electric.json', title: 'Электрички: Гатчина-Варшавская ↔ Балтийский вокзал', desc: 'Готовый пример маршрута вида «Электричка» с временем в пути. Отредактируйте под своё направление и загрузите.' },
+  { file: 'data/template-electric-multi.json', title: 'Электрички: несколько направлений', desc: 'Шаблон с 4 направлениями: Гатчина-Варшавская и СПб (Балтийский) в обе стороны. Заполните времена рейсов.' },
+  { file: 'data/template-bus.json', title: 'Автобусы: Большое Рейзино ↔ Гатчина', desc: 'Расписание на 2026-10-06 (летнее). Замените рейсы на зимние и импортируйте.' },
   { file: 'data/template-route.json', title: 'Пустой каркас маршрута', desc: 'Заполните поля своими данными и импортируйте одним файлом.' }
 ];
 
