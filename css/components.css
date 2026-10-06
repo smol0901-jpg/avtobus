@@ -31,6 +31,15 @@
 .hl b { font-size: 1.2rem; }
 .next { margin-top: 10px; font-size: .85rem; color: var(--mu); }
 
+/* Переключатель маршрутов */
+.rtabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+.rtabs::-webkit-scrollbar { display: none; }
+.rtabs button { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+  border-radius: 99px; border: 1px solid var(--ln); background: var(--card); font-size: .85rem; max-width: 320px; }
+.rtabs button svg { width: 18px; height: 18px; flex: none; }
+.rtabs button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rtabs .on { background: var(--ac); border-color: var(--ac); color: #fff; font-weight: 700; }
+
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
@@ -102,3 +111,38 @@ textarea { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monosp
 .dlgbox p { color: var(--mu); font-size: .9rem; margin: 6px 0 0; }
 .dlgbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .dlg.danger .dlgbox h3 { color: var(--now); }
+
+/* Баннер актуальности данных (сезон, дата обновления) */
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  background: var(--ac2); border: 1px solid var(--ln); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
+.banner.warn { background: var(--soon2); border-color: var(--soon); }
+.banner b { font-size: .86rem; }
+.banner .muted { font-size: .78rem; }
+.warn-t { color: var(--soon); font-size: .78rem; font-weight: 600; margin-top: 2px; }
+.btn.vk { white-space: nowrap; }
+
+/* Компактный вид строк расписания */
+.row.cmp { padding: 5px 8px 5px 12px; margin-bottom: 4px; grid-template-columns: 52px 1fr auto auto; }
+.row.cmp .time { font-size: 1.02rem; }
+.row.cmp .rtwrap .sub { display: none; }
+.row.cmp .rt { font-size: .84rem; }
+
+/* Иконки вида транспорта в списке маршрутов и подсказках */
+.kindtag { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .02em;
+  border-radius: 6px; padding: 1px 7px; margin-right: 6px; background: var(--ac2); color: var(--ac); vertical-align: 2px; }
+.kindtag.train { background: var(--now2); color: var(--now); }
+
+/* Адаптация под планшет и десктоп */
+@media (min-width: 768px) {
+  main { max-width: 920px; padding: 20px 24px; }
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .rtabs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .grid2 { grid-template-columns: repeat(3, 1fr); }
+  .hero .big { font-size: 3rem; }
+}
+@media (min-width: 1100px) {
+  main { max-width: 1080px; }
+  .tabbar { left: 50%; transform: translateX(-50%); right: auto; width: min(560px, 92vw);
+    border: 1px solid var(--ln); border-bottom: 0; border-radius: 16px 16px 0 0; bottom: 0; }
+}
