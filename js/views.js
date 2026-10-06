@@ -1,7 +1,22 @@
 // Экраны приложения. Каждая функция возвращает HTML-строку; обработчики — делегирование в app.js.
 import { esc, cnt } from './ui.js';
 import { toMin, minOf, addMin, human, dateLabel } from './time.js';
-import { kindOf, KIND_LABEL } from './store.js';
+import { kindOf, KIND_LABEL, season, freshness, TEMPLATES } from './store.js';
+
+const fmtDate = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+// Баннер актуальности данных: сезон, дата обновления, сколько дней до смены сезона
+function dataBanner(r, now) {
+  const s = season(now), f = freshness(r, now);
+  const train = kindOf(r) === 'train';
+  const what = train ? 'расписание поездов' : 'расписание автобусов';
+  return `<section class="banner${f.stale ? ' warn' : ''}">
+    <div><b>${r.builtin ? 'Данные обновлены ' + esc(r.updated || '—') : 'Обновлено ' + esc(r.updated || '—')}</b>
+      <div class="muted">Сейчас действует ${s.name} график. Ориентировочная смена сезона: ${fmtDate(s.switchDate)} (${cnt(f.days, 'день', 'дня', 'дней')}).</div>
+      ${f.stale ? `<div class="warn-t">Дата обновления раньше начала ${s.name} сезона — проверьте актуальность.</div>` : ''}</div>
+    <button class="btn sm pri vk" data-act="vkupd" data-v="${train ? 'train' : 'bus'}">Сообщить об изменении</button>
+  </section>`;
+}
 
 const num = r => String(r).split(' ')[0];
 const rest = r => String(r).split(' ').slice(1).join(' ');
@@ -80,8 +95,12 @@ export function schedule(S, r, now, ctx) {
   };
 
   const shown = S.s.past ? up.concat(past.slice().reverse()) : up;
+  const listHtml = shown.length
+    ? `<div class="rows">${shown.map(row).join('')}</div>`
+    : `<div class="empty">Нет ${trip[2]} на этот день</div>`;
   return `${picker}
   <div class="greet">${tip}${dateLabel(now)} · ${ctx.holidayToday ? 'праздничный день — выходной график' : wk ? 'выходной график' : 'будни'}${r.price ? ' · проезд ' + r.price + ' ₽' : ''}</div>
+  ${r.builtin ? dataBanner(r, now) : ''}
   <div class="seg" role="group" aria-label="Направление">${r.dirs.map((x, i) =>
     `<button class="${i === di ? 'on' : ''}" data-act="dir" data-v="${i}" aria-pressed="${i === di}">${esc(x.title)}</button>`).join('')}</div>
   ${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}
@@ -94,7 +113,7 @@ export function schedule(S, r, now, ctx) {
     <div class="btns" style="margin:0">
     <button class="btn sm" data-act="compact" aria-pressed="${S.s.compact}">${S.s.compact ? 'Обычный вид' : 'Компактно'}</button>
     <button class="btn sm" data-act="past" aria-pressed="${S.s.past}">${S.s.past ? 'Скрыть ушедшие' : 'Показать ушедшие'}</button></div></div>
-  ${shown.length ? shown.map(row).join('') : `<div class="empty">Нет ${trip[2]} на этот день</div>`}`;
+  ${listHtml}`;
 }
 
 // ---------- Маршруты ----------
@@ -103,6 +122,14 @@ export function routes(S, r, now, ctx) {
   const formTitle = ctx.editing ? 'Редактирование маршрута' : 'Добавить маршрут';
   const e = ctx.editing || {};
   const dirs = e.dirs || [];
+  const tpl = `<h2>Шаблоны JSON</h2>
+  <div class="muted">Готовые файлы из папки data/ репозитория: скачать и отредактировать или загрузить в приложение одной кнопкой.</div>
+  ${TEMPLATES.map(t => `<div class="card item">
+    <div class="itemmain"><b>${esc(t.title)}</b><div class="muted">${esc(t.desc)}</div></div>
+    <div class="btns" style="margin:0">
+      <button class="btn sm" data-act="dlTpl" data-v="${esc(t.file)}">Скачать</button>
+      <button class="btn sm pri" data-act="loadTpl" data-v="${esc(t.file)}">Загрузить</button>
+    </div></div>`).join('')}`;
   return `<h2>Мои маршруты</h2>` +
   S.routes.map(rt => {
     const tr = kindOf(rt) === 'train';
@@ -115,6 +142,7 @@ export function routes(S, r, now, ctx) {
       <button class="btn sm bad" data-act="del" data-v="${esc(rt.id)}">Удалить</button>`}
     </div></div>`;
   }).join('') +
+  tpl +
   `<h2>${formTitle}</h2><form class="card" id="add">
     ${ctx.editing ? `<input type="hidden" name="id" value="${esc(e.id)}">` : ''}
     <label class="field">Название<input name="name" placeholder="Дом — Работа" required maxlength="80" value="${esc(e.name || '')}"></label>
@@ -199,9 +227,15 @@ export function about(S, r, now, x) {
 
   <div class="card links"><b>Связь с автором</b>
     <div class="muted">Смольянинов Александр Вячеславович</div>
+    <div class="btns"><button class="btn pri" data-act="vkupd" data-v="both">Сообщить об изменении расписания</button></div>
+    <div class="muted">Откроется диалог ВКонтакте с готовым текстом — останется нажать «Отправить».</div>
     <a href="https://vk.com/smolyaninovchef" target="_blank" rel="noopener">VK · smolyaninovchef</a>
     <a href="https://dzen.ru/asv_prod" target="_blank" rel="noopener">Дзен · asv_prod</a>
     <a href="https://t.me/asv_prod" target="_blank" rel="noopener">Telegram · asv_prod</a></div>
+
+  <div class="card links"><b>Актуальность данных</b>
+    <p class="muted">Автобусы: данные на ${esc(r.updated || '—')} (летнее расписание). Смена на зимнее — ориентировочно в первую субботу октября; следите за баннером на экране «Рейсы». Электрички перед поездкой сверяйте с РЖД.</p>
+    <p class="muted">Прямое парсинговое обновление из браузера невозможно: rasp.yandex.ru и rzd.ru запрещают межсайтовые запросы (CORS) и требуют серверного обходного слоя. Поэтому расписание обновляет автор вручную и публикует новую версию приложения, а пользователи получают её кнопкой «Обновить приложение» или шаблонами JSON из вкладки «Маршруты».</p></div>
 
   <div class="card links"><b>Источник данных</b>
     <a href="https://rasp.yandex.ru/all-transport/krasnoarmeyskiy-prospekt-ulitsa-nesterova--bolshoe-reyzino" target="_blank" rel="noopener">Яндекс Расписания — автобусы</a>

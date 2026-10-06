@@ -1,9 +1,10 @@
 // Точка входа: состояние вкладки, рендер, обработчики событий, уведомления.
-import { S, save, route, addRoute, updRoute, delRoute, parseLines, flightsToText, resetAll, importJSON, exportJSON, workday, isHoliday, ymd, kindOf } from './store.js';
+import { S, save, route, addRoute, updRoute, delRoute, parseLines, flightsToText, resetAll, importJSON, exportJSON, workday, isHoliday, ymd, kindOf, fetchTemplate } from './store.js';
 import * as V from './views.js';
 import { $, toast, confirmBox, vibrate, EXAMPLE_A, EXAMPLE_TRAIN } from './ui.js';
 import { VERSION } from './data.js';
 import { toMin, minOf } from './time.js';
+import { openVkMessage, copyText, MSG_BUS, MSG_TRAIN, MSG_BOTH } from './vk.js';
 
 const TABS = ['sched', 'routes', 'profile', 'about'];
 const pages = { sched: V.schedule, routes: V.routes, profile: V.profile, about: V.about };
@@ -227,6 +228,30 @@ const A = {
     return 1;
   },
   import: () => { $('#file').click(); return 1; },
+  vkupd: async v => {
+    const text = v === 'train' ? MSG_TRAIN : v === 'both' ? MSG_BOTH : MSG_BUS;
+    const ok = copyText(text); // текст уже в буфере — на случай, если окно не откроется
+    openVkMessage(text);
+    if (await ok) toast('Текст скопирован. В VK нажмите «Отправить»');
+    return 1;
+  },
+  dlTpl: v => {
+    const a = document.createElement('a');
+    a.href = new URL(v, document.baseURI).href;
+    a.download = v.split('/').pop();
+    a.click();
+    toast('Шаблон скачан');
+    return 1;
+  },
+  loadTpl: async v => {
+    try {
+      const n = importJSON(await fetchTemplate(v));
+      toast(`Загружено маршрутов: ${n}`);
+      setTab('sched');
+      render(true);
+    } catch (e) { toast('Не удалось загрузить шаблон' + (navigator.onLine ? '' : ' — нет сети')); }
+    return 1;
+  },
   export: () => {
     const data = exportJSON();
     if (!JSON.parse(data).routes.length) return toast('Нечего экспортировать — своих маршрутов нет');

@@ -157,6 +157,45 @@ export const kindOf = r => r.kind || (/электр|поезд|ржд|сапса
 
 export const KIND_LABEL = { bus: 'Автобус', train: 'Электричка' };
 
+// ---- Актуальность данных: сезонное расписание ----
+// Сезон меняется ориентировочно в первую субботу апреля (летнее) и октября (зимнее).
+const firstSat = (y, m) => { const d = new Date(y, m, 1); return new Date(y, m, 1 + ((6 - d.getDay()) + 7) % 7); };
+export function season(now = new Date()) {
+  const y = now.getFullYear(), summer = firstSat(y, 3), winter = firstSat(y, 9);
+  if (now >= winter) return { name: 'зимнее', switchDate: firstSat(y + 1, 3) };
+  if (now >= summer) return { name: 'летнее', switchDate: winter };
+  return { name: 'зимнее', switchDate: summer };
+}
+
+// Дней до смены сезона; если данные старше начала текущего сезона — пора обновлять.
+export function freshness(r, now = new Date()) {
+  const s = season(now);
+  const days = Math.ceil((s.switchDate - now) / 864e5);
+  let stale = false;
+  if (r.updated) {
+    const upd = new Date(r.updated + 'T00:00:00');
+    // Начало текущего сезона: для летнего — апрель этого года, для зимнего — октябрь этого или прошлого года
+    const curStart = s.name === 'летнее' ? firstSat(now.getFullYear(), 3)
+      : (now.getMonth() >= 9 ? firstSat(now.getFullYear(), 9) : firstSat(now.getFullYear() - 1, 9));
+    stale = upd < curStart;
+  }
+  return { days, stale };
+}
+
+// ---- Шаблоны JSON (папка data/ в репозитории) ----
+export const TEMPLATES = [
+  { file: 'data/template-bus.json', title: 'Автобусы: Большое Рейзино ↔ Гатчина', desc: 'Летнее расписание на 2026-10-06. Замените рейсы на зимние и импортируйте.' },
+  { file: 'data/template-electric.json', title: 'Электрички: Гатчина ↔ Балтийский вокзал', desc: 'Готовый пример маршрута вида «Электричка» с временем в пути.' },
+  { file: 'data/template-route.json', title: 'Пустой каркас маршрута', desc: 'Заполните поля своими данными и импортируйте одним файлом.' }
+];
+
+export async function fetchTemplate(file) {
+  const base = document.baseURI || location.href;
+  const res = await fetch(new URL(file, base));
+  if (!res.ok) throw new Error('http ' + res.status);
+  return res.text();
+}
+
 // Слово «рейс» в зависимости от вида транспорта
 export const tripWord = (r, one, few, many) => kindOf(r) === 'train'
   ? { one: 'поезд', few: 'поезда', many: 'поездов' }[{ one, few, many }] || many

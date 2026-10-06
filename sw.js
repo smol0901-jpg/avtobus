@@ -1,10 +1,11 @@
 // Рейзино Транзит — Service Worker.
 // Версия должна совпадать с VERSION в js/data.js (с префиксом rt-): тогда у всех обновится кэш.
-const V = 'rt-2.1.0';
+const V = 'rt-2.4.0';
 const FILES = [
   './', 'index.html', 'offline.html', 'manifest.webmanifest',
   'css/base.css', 'css/components.css',
-  'js/app.js', 'js/views.js', 'js/store.js', 'js/data.js', 'js/time.js', 'js/ui.js',
+  'js/app.js', 'js/views.js', 'js/store.js', 'js/data.js', 'js/time.js', 'js/ui.js', 'js/vk.js',
+  'data/template-bus.json', 'data/template-electric.json', 'data/template-route.json',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'
 ];
 
