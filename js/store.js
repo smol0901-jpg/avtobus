@@ -1,6 +1,6 @@
 // Хранилище: состояние приложения в localStorage + разбор текста расписания.
 import { SEED, SEED_ELECTRIC, HUB, HOLIDAYS_DEFAULT } from './data.js';
-import { pad, toMin } from './time.js';
+import { pad, toMin, minOf } from './time.js';
 import { dirPair } from './geo.js';
 
 const K = 'rt.v6';
@@ -195,16 +195,31 @@ function linkedDirs(routes, wantKind) {
 // Главная связка: для текущего маршрута и направления подбирает ближайший
 // рейс ДРУГОГО вида транспорта в том же направлении. Возвращает
 // { route, dirIndex, flight, pair } или null, если подходящей связки нет.
+// Направления «рейсовозных» маршрутов (Гатчина → СПб) могут не иметь пары
+// узлов — тогда направление выводится из текста первого рейса («6822
+// Гатчина-Варшавская — СПб-Балтийский»).
 export function linkTo(S, r, di, now, workToday) {
   if (!S.s.link) return null;
   const cur = r.dirs[di];
   if (!cur) return null;
-  const pair = dirPair(cur.title);
+  let pair = dirPair(cur.title);
+  if (!pair && cur.flights && cur.flights.length) pair = dirPair(String(cur.flights[0].r || ''));
   if (!pair) return null;
   const want = kindOf(r) === 'train' ? 'bus' : 'train';
-  const cands = linkedDirs(S.routes.filter(x => x.id !== r.id), want)
-    .filter(m => m.pair[0] === pair[0] && m.pair[1] === pair[1]);
-  for (const m of cands) {
+  const cands = [];
+  for (const x of S.routes) {
+    if (x.id === r.id || kindOf(x) !== want) continue;
+    x.dirs.forEach((d, i) => {
+      let p = dirPair(d.title);
+      if (!p && d.flights && d.flights.length) p = dirPair(String(d.flights[0].r || ''));
+      if (p) cands.push({ route: x, dirIndex: i, dir: d, pair: p });
+    });
+  }
+  const matched = cands.filter(m => m.pair[0] === pair[0] && m.pair[1] === pair[1]);
+  // Если точного совпадения узлов нет, допускаем связку через общий узел
+  // назначения (электричка до СПб считается продолжением пути в ту же сторону).
+  const pool = matched.length ? matched : cands.filter(m => m.pair[1] === pair[1]);
+  for (const m of pool) {
     const f = nextFlight(m.dir, now, workToday);
     if (f) return { route: m.route, dirIndex: m.dirIndex, flight: f, pair };
   }

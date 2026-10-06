@@ -6,8 +6,8 @@ import { VERSION } from './data.js';
 import { toMin, minOf } from './time.js';
 import { openVkMessage, copyText, MSG_BUS, MSG_TRAIN, MSG_BOTH } from './vk.js';
 
-const TABS = ['sched', 'routes', 'profile', 'about'];
-const pages = { sched: V.schedule, routes: V.routes, profile: V.profile, about: V.about };
+const TABS = ['dash', 'sched', 'routes', 'profile', 'about'];
+const pages = { dash: V.dashboard, sched: V.schedule, routes: V.routes, profile: V.profile, about: V.about };
 const KEY = 'rt.tab';
 
 let deferred = null;
@@ -20,7 +20,7 @@ function currentTab() {
   const h = location.hash.replace(/^#\/?/, '');
   if (TABS.includes(h)) return h;
   const saved = localStorage.getItem(KEY);
-  return TABS.includes(saved) ? saved : 'sched';
+  return TABS.includes(saved) ? saved : 'dash';
 }
 let tab = currentTab();
 addEventListener('hashchange', () => {
@@ -171,6 +171,18 @@ const A = {
       const { id, dir } = JSON.parse(v);
       if (S.routes.some(x => x.id === id)) { S.s.route = id; S.s.dir = +dir || 0; S.s.filter = ''; }
     } catch (e) {}
+  },
+  openRoute: v => { // из дашборда: перейти на экран «Рейсы» с выбранным маршрутом и направлением
+    try {
+      const { id, dir } = JSON.parse(v);
+      if (S.routes.some(x => x.id === id)) { S.s.route = id; S.s.dir = +dir || 0; S.s.filter = ''; setTab('sched'); }
+    } catch (e) {}
+    render(true);
+    return 1;
+  },
+  tabgo: v => { // быстрое действие с дашборда — переключить вкладку
+    if (TABS.includes(v)) { setTab(v); scrollTo(0, 0); render(true); }
+    return 1;
   },
   edit: v => { editingId = v; scrollTo(0, 0); },
   cancelEdit: () => { editingId = null; },
@@ -336,7 +348,7 @@ addEventListener('offline', () => render(true));
 
 // Раз в секунду — уведомления; раз в минуту — перерисовка списка рейсов
 setInterval(() => { if (!document.hidden) checkNotify(); }, 1000);
-setInterval(() => { if (tab === 'sched' && !document.hidden) render(); }, 15000);
+setInterval(() => { if ((tab === 'sched' || tab === 'dash') && !document.hidden) render(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(true); });
 
 // ---- Service Worker ----

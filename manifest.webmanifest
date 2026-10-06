@@ -8,7 +8,7 @@
   "scope": "./",
   "id": "reyzino-transit",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0f1722",
   "theme_color": "#1f5fa8",
   "categories": ["travel", "navigation", "utilities"],
@@ -19,6 +19,12 @@
     {"src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml"}
   ],
   "shortcuts": [
+    {
+      "name": "Сводка",
+      "short_name": "Сводка",
+      "url": "./#/dash",
+      "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]
+    },
     {
       "name": "Рейсы",
       "short_name": "Рейсы",
