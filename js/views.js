@@ -1,15 +1,20 @@
 // Экраны приложения. Каждая функция возвращает HTML-строку; обработчики — делегирование в app.js.
 import { esc, cnt } from './ui.js';
 import { toMin, minOf, addMin, human, dateLabel } from './time.js';
-import { kindOf, KIND_LABEL, season, freshness, TEMPLATES } from './store.js';
+import { kindOf, KIND_LABEL, season, freshness, TEMPLATES, linkTo, upcoming } from './store.js';
+import { dirPair, stationLabel } from './geo.js';
 
 const fmtDate = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+// Иконки видов транспорта (строгий размер 18px, без эмодзи)
+const ICO_BUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 10h16"/><circle cx="8.5" cy="14" r=".6" fill="currentColor"/><circle cx="15.5" cy="14" r=".6" fill="currentColor"/><path d="M7 17v2M17 17v2"/></svg>';
+const ICO_TRAIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><path d="M9 20l-2 2M15 20l2 2"/><circle cx="9" cy="13.5" r=".6" fill="currentColor"/><circle cx="15" cy="13.5" r=".6" fill="currentColor"/></svg>';
+const ico = k => (k === 'train' ? ICO_TRAIN : ICO_BUS);
 
 // Баннер актуальности данных: сезон, дата обновления, сколько дней до смены сезона
 function dataBanner(r, now) {
   const s = season(now), f = freshness(r, now);
   const train = kindOf(r) === 'train';
-  const what = train ? 'расписание поездов' : 'расписание автобусов';
   return `<section class="banner${f.stale ? ' warn' : ''}">
     <div><b>${r.builtin ? 'Данные обновлены ' + esc(r.updated || '—') : 'Обновлено ' + esc(r.updated || '—')}</b>
       <div class="muted">Сейчас действует ${s.name} график. Ориентировочная смена сезона: ${fmtDate(s.switchDate)} (${cnt(f.days, 'день', 'дня', 'дней')}).</div>
@@ -32,16 +37,30 @@ export function schedule(S, r, now, ctx) {
   const verb = train ? 'отправление' : '';
   const byTime = (a, b) => toMin(a.t) - toMin(b.t);
 
-  // Выбор маршрута: список для смены прямо на экране
+  // Выбор маршрута: компактные чипы с маленькой иконкой вида транспорта
   const picker = `<nav class="rtabs" aria-label="Маршруты">${S.routes.map(x => {
     const on = x.id === r.id;
     return `<button class="${on ? 'on' : ''}" data-act="pick" data-v="${esc(x.id)}" aria-pressed="${on}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
-        kindOf(x) === 'train'
-          ? '<rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14"/><path d="M9 20l-2 2M15 20l2 2"/><circle cx="9" cy="13.5" r=".6" fill="currentColor"/><circle cx="15" cy="13.5" r=".6" fill="currentColor"/>'
-          : '<rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 10h16"/><circle cx="8.5" cy="14" r=".6" fill="currentColor"/><circle cx="15.5" cy="14" r=".6" fill="currentColor"/><path d="M7 17v2M17 17v2"/>'}</svg>
-      <span>${esc(x.name)}</span></button>`;
+      ${ico(kindOf(x))}<span>${esc(x.name)}</span></button>`;
   }).join('')}</nav>`;
+
+  // Связка с другим видом транспорта: ближайший поезд/автобус в ТУ ЖЕ сторону
+  let cross = '';
+  const lk = linkTo(S, r, di, now, ctx.workToday);
+  if (lk) {
+    const lf = lk.flight, lm = toMin(lf.t) - nm;
+    const otherTrain = kindOf(lk.route) === 'train';
+    cross = `<section class="cross${lm <= 15 ? ' hot' : ''}" role="group" aria-label="Пересадка">
+      <div class="cico">${ico(otherTrain ? 'train' : 'bus')}</div>
+      <div class="cmain">
+        <div class="ctitle">${otherTrain ? 'Ближайшая электричка' : 'Ближайший автобус'} · ${esc(stationLabel(lk.pair[0]))} → ${esc(stationLabel(lk.pair[1]))}</div>
+        <div class="crow"><b>${lf.t}</b> · <span class="num">${num(lf.r)}</span>${esc(rest(lf.r))}
+          <span class="cdel">через ${human(lm)}</span></div>
+        ${lf.d ? `<div class="sub">Прибытие ${addMin(lf.t, lf.d)} · в пути ${lf.d} мин</div>` : ''}
+      </div>
+      <button class="btn sm" data-act="openLink" data-v="${esc(JSON.stringify({ id: lk.route.id, dir: lk.dirIndex }))}">Открыть</button>
+    </section>`;
+  }
 
   const all = d.flights.filter(f => !(f.w && wk)).sort(byTime);
   const lines = [...new Set(all.map(f => num(f.r)))].sort();
@@ -64,7 +83,7 @@ export function schedule(S, r, now, ctx) {
       : '';
     const nx = up.slice(1, 3).map(x => `<b>${x.t}</b> (${num(x.r)}, через ${human(delta(x))})`).join(' · ');
     hero = `<section class="hero ${c}${pinCls(num(f.r))}" aria-live="polite">
-      <div class="eyebrow">Ближайший ${train ? 'поезд' : 'рейс'}${ctx.holidayToday ? ' · праздник' : wk ? ' · выходной график' : ''}</div>
+      <div class="eyebrow">${ico(train ? 'train' : 'bus')} Ближайший ${train ? 'поезд' : 'рейс'}${ctx.holidayToday ? ' · праздник' : wk ? ' · выходной график' : ''}</div>
       <div class="big">${m <= 0 ? 'Сейчас' : 'через ' + human(m)}${live}</div>
       <div class="hl"><b>${f.t}</b> · <span class="num">${num(f.r)}</span>${esc(rest(f.r))}</div>
       ${f.d ? `<div class="sub">Прибытие ${addMin(f.t, f.d)} · в пути ${f.d} мин</div>` : `<div class="sub">${verb || 'время отправления'}</div>`}
@@ -74,7 +93,7 @@ export function schedule(S, r, now, ctx) {
   } else {
     const tm = new Date(now.getTime() + 864e5), tw = !ctx.workTomorrow;
     const first = d.flights.filter(f => !(f.w && tw) && (!fl || num(f.r) === fl)).sort(byTime)[0];
-    hero = `<section class="hero none"><div class="eyebrow">На сегодня всё</div>
+    hero = `<section class="hero none"><div class="eyebrow">${ico(train ? 'train' : 'bus')} На сегодня всё</div>
       <div class="big small">${train ? 'Поездов' : 'Рейсов'} больше нет</div>
       ${first ? `<div class="hl">Завтра первый: <b>${first.t}</b> · <span class="num">${num(first.r)}</span>${esc(rest(first.r))}</div>` : ''}
     </section>`;
@@ -105,6 +124,7 @@ export function schedule(S, r, now, ctx) {
     `<button class="${i === di ? 'on' : ''}" data-act="dir" data-v="${i}" aria-pressed="${i === di}">${esc(x.title)}</button>`).join('')}</div>
   ${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}
   ${hero}
+  ${cross}
   <div class="chips" role="group" aria-label="Фильтр по линиям">
     <button class="chip${fl ? '' : ' on'}" data-act="filter" data-v="" aria-pressed="${!fl}">Все линии</button>
     ${lines.map(l => `<button class="chip${fl === l ? ' on' : ''}" data-act="filter" data-v="${esc(l)}" aria-pressed="${fl === l}">${S.s.pinned.includes(l) ? '★' : ''}${esc(l)}</button>`).join('')}
@@ -123,7 +143,7 @@ export function routes(S, r, now, ctx) {
   const e = ctx.editing || {};
   const dirs = e.dirs || [];
   const tpl = `<h2>Шаблоны JSON</h2>
-  <div class="muted">Готовые файлы из папки data/ репозитория: скачать и отредактировать или загрузить в приложение одной кнопкой.</div>
+  <div class="muted">Готовые файлы из папки data/ репозитория: скачать и отредактировать или загрузить в приложение одной кнопкой. Направления электричек задаются прямо в файле — добавьте сколько угодно пар «откуда → куда», приложение само свяжет их с автобусами по общим остановкам.</div>
   ${TEMPLATES.map(t => `<div class="card item">
     <div class="itemmain"><b>${esc(t.title)}</b><div class="muted">${esc(t.desc)}</div></div>
     <div class="btns" style="margin:0">
@@ -133,9 +153,11 @@ export function routes(S, r, now, ctx) {
   return `<h2>Мои маршруты</h2>` +
   S.routes.map(rt => {
     const tr = kindOf(rt) === 'train';
+    const pairs = rt.dirs.map(d => dirPair(d.title) ? `${stationLabel(dirPair(d.title)[0])} → ${stationLabel(dirPair(d.title)[1])}` : d.title);
     return `<div class="card item${rt.id === S.s.route ? ' act' : ''}">
-    <div class="itemmain"><b>${esc(rt.name)}</b>
-      <div class="muted">${KIND_LABEL[tr ? 'train' : 'bus']} · ${rt.dirs.map(d => cnt(d.flights.length, ...(tr ? ['поезд', 'поезда', 'поездов'] : ['рейс', 'рейса', 'рейсов']))).join(' и ')}${rt.builtin ? ' · встроенный' : ''} · обновлено ${esc(rt.updated || '—')}</div></div>
+    <div class="itemmain"><b>${ico(kindOf(rt))} ${esc(rt.name)}</b>
+      <div class="muted">${KIND_LABEL[tr ? 'train' : 'bus']} · ${rt.dirs.map(d => cnt(d.flights.length, ...(tr ? ['поезд', 'поезда', 'поездов'] : ['рейс', 'рейса', 'рейсов']))).join(' и ')}${rt.builtin ? ' · встроенный' : ''} · обновлено ${esc(rt.updated || '—')}</div>
+      <div class="dirsline">${pairs.map(p => `<span class="dtag">${esc(p)}</span>`).join('')}</div></div>
     <div class="btns" style="margin:0">
       ${rt.id === S.s.route ? '' : `<button class="btn sm pri" data-act="pick" data-v="${esc(rt.id)}">Открыть</button>`}
       ${rt.builtin ? '' : `<button class="btn sm" data-act="edit" data-v="${esc(rt.id)}">Изменить</button>
@@ -219,14 +241,14 @@ export function about(S, r, now, x) {
     <ol class="howto">
       <li>Откройте вкладку «Рейсы» — сверху крупно показано, сколько ждать ближайший рейс.</li>
       <li>Меняйте маршрут вверху экрана, переключайте направление, фильтруйте по линии, закрепляйте нужные звёздочкой.</li>
-      <li>Электрички добавлены как отдельный маршрут; свои расписания поездов можно добавлять так же, выбрав вид «Электричка».</li>
+      <li>Блок «Пересадка» под ближайшим рейсом показывает, какой поезд или автобус придёт следующим в том же направлении: смотрите автобус до Гатчины — приложение подскажет ближайшую электричку до СПб; смотрите электричку до Гатчины — подскажет ближайший автобус до Большого Рейзино.</li>
+      <li>Свои направления электричек добавляются JSON-шаблоном во вкладке «Маршруты»: опишите пару «откуда → куда» и рейсы — связка с автобусами появится автоматически.</li>
       <li>В профиле включите оповещения: напоминание придёт за 5 минут до ближайшего рейса.</li>
-      <li>Добавьте свои маршруты во вкладке «Маршруты» или импортируйте готовый JSON.</li>
       <li>Установите приложение на телефон: профиль → «Установить приложение». Оно работает офлайн.</li>
     </ol></div>
 
   <div class="card links"><b>Связь с автором</b>
-    <div class="muted">Смольянинов Александр Вячеславович</div>
+    <div class="muted">Смолянинов Александр Вячеславович</div>
     <div class="btns"><button class="btn pri" data-act="vkupd" data-v="both">Сообщить об изменении расписания</button></div>
     <div class="muted">Откроется диалог ВКонтакте с готовым текстом — останется нажать «Отправить».</div>
     <a href="https://vk.com/smolyaninovchef" target="_blank" rel="noopener">VK · smolyaninovchef</a>
@@ -239,7 +261,7 @@ export function about(S, r, now, x) {
 
   <div class="card links"><b>Источник данных</b>
     <a href="https://rasp.yandex.ru/all-transport/krasnoarmeyskiy-prospekt-ulitsa-nesterova--bolshoe-reyzino" target="_blank" rel="noopener">Яндекс Расписания — автобусы</a>
-    <a href="https://rasp.yandex.ru/station/10134" target="_blank" rel="noopener">Яндекс Расписания — станция Гатчинь-Варшавский-Балтийский</a>
+    <a href="https://rasp.yandex.ru/station/10134" target="_blank" rel="noopener">Яндекс Расписания — станция Гатчина-Варшавская (Балтийское направление)</a>
     <a href="https://www.rzd.ru/" target="_blank" rel="noopener">РЖД — официальное расписание</a></div>
 
   <div class="card"><b>Технологии</b>

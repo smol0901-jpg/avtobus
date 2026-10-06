@@ -22,6 +22,7 @@
 .hero.none { background: var(--card); }
 .hero.pin { border-left: 4px solid var(--ac); }
 .eyebrow { font-size: .78rem; color: var(--mu); text-transform: uppercase; letter-spacing: .04em; }
+.eyebrow svg { width: 15px; height: 15px; vertical-align: -2px; margin-right: 3px; opacity: .8; }
 .big { font-size: 2.6rem; font-weight: 800; line-height: 1.1; margin: 4px 0; color: var(--ac); font-variant-numeric: tabular-nums; }
 .big.small { font-size: 1.6rem; }
 .hero.soon .big { color: var(--soon); }
@@ -31,14 +32,35 @@
 .hl b { font-size: 1.2rem; }
 .next { margin-top: 10px; font-size: .85rem; color: var(--mu); }
 
-/* Переключатель маршрутов */
+/* Переключатель маршрутов: компактные чипы, иконка 14px — аккуратно и не спорит с текстом */
 .rtabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
 .rtabs::-webkit-scrollbar { display: none; }
-.rtabs button { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+.rtabs button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px;
   border-radius: 99px; border: 1px solid var(--ln); background: var(--card); font-size: .85rem; max-width: 320px; }
-.rtabs button svg { width: 18px; height: 18px; flex: none; }
+.rtabs button svg { width: 14px; height: 14px; flex: none; opacity: .85; }
 .rtabs button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rtabs .on { background: var(--ac); border-color: var(--ac); color: #fff; font-weight: 700; }
+
+/* Блок «Пересадка»: ближайший рейс другого вида транспорта в том же направлении */
+.cross { display: flex; gap: 10px; align-items: center; background: var(--card);
+  border: 1px dashed var(--ac); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
+.cross.hot { border-style: solid; background: var(--soon2); border-color: var(--soon); }
+.cross .cico { flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--ac2); color: var(--ac);
+  display: flex; align-items: center; justify-content: center; }
+.cross.hot .cico { background: var(--now2); color: var(--now); }
+.cross .cico svg { width: 20px; height: 20px; }
+.cross .cmain { min-width: 0; flex: 1; }
+.cross .ctitle { font-size: .74rem; text-transform: uppercase; letter-spacing: .03em; color: var(--mu); }
+.cross .crow { font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cross .crow b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.cross .cdel { float: right; font-weight: 700; color: var(--ac); font-size: .82rem; margin-left: 8px; }
+.cross.hot .cdel { color: var(--now); }
+@media (max-width: 420px) { .cross .btn.sm { display: none; } }
+
+/* Теги направлений в списке маршрутов */
+.dirsline { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.dtag { font-size: .72rem; background: var(--ac2); color: var(--ac); border-radius: 6px; padding: 2px 8px; }
+.itemmain > b svg { width: 15px; height: 15px; vertical-align: -2px; margin-right: 2px; }
 
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }

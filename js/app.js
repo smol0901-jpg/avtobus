@@ -76,7 +76,7 @@ function render(force) {
   if (S.s.dir >= r.dirs.length) { S.s.dir = 0; save(); }
 
   const key = JSON.stringify([tab, r.id, S.s.dir, S.s.filter, S.s.past, S.s.compact, S.s.pinned, S.s.name, S.s.theme,
-    S.s.alerts, S.s.holidays.length, now.getHours(), now.getMinutes(), c.canInstall, c.standalone, storageInfo, editingId]);
+    S.s.alerts, S.s.holidays.length, now.getHours(), now.getMinutes(), now.getDate(), c.canInstall, c.standalone, storageInfo, editingId]);
   if (!force && key === lastKey) return; // ничего не изменилось — не трогаем DOM
   lastKey = key;
 
@@ -148,7 +148,7 @@ async function checkNotify() {
   if (m > 0 && m <= 5 && !notifSeen.has(id)) {
     notifSeen.add(id);
     try {
-      new Notification('Автобус через ' + m + ' мин', {
+      new Notification((kindOf(r) === 'train' ? 'Поезд' : 'Автобус') + ' через ' + m + ' мин', {
         body: `${f.t} ${String(f.r).split(' ')[0]} · ${r.name}`,
         tag: 'rt-' + id, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', silent: false
       });
@@ -166,6 +166,12 @@ const A = {
   past: () => { S.s.past = !S.s.past; },
   compact: () => { S.s.compact = !S.s.compact; },
   pick: v => { S.s.route = v; S.s.dir = 0; S.s.filter = ''; editingId = null; setTab('sched'); },
+  openLink: v => { // открыть связанный маршрут в нужном направлении (кнопка «Открыть» в блоке пересадки)
+    try {
+      const { id, dir } = JSON.parse(v);
+      if (S.routes.some(x => x.id === id)) { S.s.route = id; S.s.dir = +dir || 0; S.s.filter = ''; }
+    } catch (e) {}
+  },
   edit: v => { editingId = v; scrollTo(0, 0); },
   cancelEdit: () => { editingId = null; },
   theme: v => { S.s.theme = v; },
