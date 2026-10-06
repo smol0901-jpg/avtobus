@@ -162,9 +162,73 @@ textarea { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monosp
   .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   .grid2 { grid-template-columns: repeat(3, 1fr); }
   .hero .big { font-size: 3rem; }
+  .tiles { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 1100px) {
   main { max-width: 1080px; }
-  .tabbar { left: 50%; transform: translateX(-50%); right: auto; width: min(560px, 92vw);
+  .tabbar { left: 50%; transform: translateX(-50%); right: auto; width: min(640px, 92vw);
     border: 1px solid var(--ln); border-bottom: 0; border-radius: 16px 16px 0 0; bottom: 0; }
+  /* Десктоп: боковая навигация вместо нижней панели — полноценная ПК-раскладка */
+  @media (orientation: landscape) and (min-height: 700px) {
+    body { padding: 72px 0 24px; }
+    .tabbar {
+      position: fixed; left: 0; top: 0; bottom: 0; transform: none; width: 220px;
+      flex-direction: column; justify-content: flex-start; gap: 4px; padding: 76px 12px 16px;
+      border: 0; border-right: 1px solid var(--ln); border-radius: 0; background: var(--card);
+    }
+    .tabbar button { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px;
+      padding: 11px 14px; border-radius: 12px; font-size: .92rem; }
+    .tabbar button.on { background: var(--ac2); }
+    main { margin-left: 220px; max-width: 1080px; margin-right: auto; }
+    .top { justify-content: flex-start; gap: 24px; }
+    #toast { left: calc(50% + 110px); bottom: 28px; }
+  }
+}
+
+/* ---- Дашборд («Сводка») ---- */
+.dashhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.dashtitle h2 { margin: 0 0 2px; font-size: 1.3rem; }
+.statuschips { display: flex; gap: 6px; flex-wrap: wrap; }
+.schip { font-size: .74rem; padding: 4px 10px; border-radius: 99px; background: var(--card);
+  border: 1px solid var(--ln); color: var(--mu); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.schip.warn { background: var(--soon2); border-color: var(--soon); color: var(--soon); font-weight: 700; }
+
+.tiles { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+.tile { background: var(--card); border: 1px solid var(--ln); border-radius: 18px; padding: 14px 16px; box-shadow: var(--sh); }
+.tile.train { border-top: 3px solid var(--now); }
+.tile.bus { border-top: 3px solid var(--ac); }
+.tile.hot { background: var(--soon2); border-color: var(--soon); }
+.tilehead { display: flex; align-items: center; gap: 8px; }
+.tilehead svg { width: 18px; height: 18px; color: var(--ac); flex: none; }
+.tile.train .tilehead svg { color: var(--now); }
+.tilehead b { font-size: .95rem; }
+.tsub { margin-left: auto; font-size: .72rem; color: var(--mu); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.tbig { font-size: 2.1rem; font-weight: 800; line-height: 1.15; color: var(--ac); font-variant-numeric: tabular-nums; margin-top: 6px; }
+.tbig.soon { color: var(--soon); }
+.troute { font-size: .8rem; color: var(--mu); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trow { font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trow b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.tarr { color: var(--mu); font-size: .78rem; margin-left: 6px; }
+.tnext { margin-top: 6px; font-size: .8rem; color: var(--mu); }
+.tbtns { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.empty.sm { padding: 10px 0; font-size: .85rem; }
+
+.dashsec { margin-bottom: 12px; }
+.dashcross { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--card); border: 1px dashed var(--ac); border-radius: 14px; padding: 10px 12px; font-size: .85rem; }
+.dashcross svg { width: 16px; height: 16px; color: var(--ac); flex: none; }
+.dashcross b { font-variant-numeric: tabular-nums; }
+.dashcross.hot { border-style: solid; background: var(--soon2); border-color: var(--soon); }
+.dashcross.hot svg, .dashcross.hot b { color: var(--soon); }
+
+.dashquick .btns { margin-top: 10px; }
+
+/* Альбомная ориентация на телефоне: два столбца даже при узком экране */
+@media (orientation: landscape) and (max-height: 500px) {
+  body { padding-top: calc(52px + env(safe-area-inset-top)); }
+  .top { padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 6px; }
+  .tabbar button { padding: 5px 2px 6px; }
+  .tabbar svg { width: 18px; height: 18px; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .hero .big { font-size: 2rem; }
 }
